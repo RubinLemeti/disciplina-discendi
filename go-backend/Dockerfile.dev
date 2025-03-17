@@ -1,0 +1,29 @@
+# Stage 1: Build the Go application
+FROM golang:1.23 AS builder
+WORKDIR /app
+COPY . .
+# RUN go build -o main .
+
+####################
+RUN apt-get update \
+&& go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+#     && apt-get install -y lsb-release
+
+# RUN apt-get update \
+# && curl -L https://packagecloud.io/golang-migrate/migrate/gpgkey | apt-key add - \
+# && echo "deb https://packagecloud.io/golang-migrate/migrate/ubuntu/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/migrate.list \
+# && apt-get update \
+# && apt-get install -y migrate 
+####################
+
+
+RUN go mod tidy
+
+
+# Needed for hot reload
+RUN go install github.com/air-verse/air@latest
+# # Stage 2: Create a lightweight runtime container
+# FROM alpine:latest
+# WORKDIR /app
+# COPY --from=builder /app/main .
+# CMD ["/app/main"]

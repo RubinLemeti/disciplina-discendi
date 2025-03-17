@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: go-backend
+    depends_on:
+      - db
+    env_file:
+      - ./go_backend/.env
+    ports:
+      - "8080:8080"
+    networks:
+      - inventory_app_network
+
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: go_backend
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - inventory_app_network
+
+networks:
+  inventory_app_network:
+
+volumes:
+  pgdata:

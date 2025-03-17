@@ -1,0 +1,39 @@
+services:
+  go-backend:
+    build: 
+      context: ./go-backend
+      dockerfile: Dockerfile.dev
+    container_name: go-backend
+    command: /go/bin/air
+    # command: tail -f /dev/null
+    depends_on:
+      - postgres-db
+    env_file:
+      - ./go-backend/.env
+    ports:
+      - "8080:8080"
+    networks:
+      - inventory_app_network
+    volumes:
+      - ./go-backend:/app
+
+  postgres-db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: go_backend
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - inventory_app_network
+
+networks:
+  inventory_app_network:
+
+volumes:
+  pgdata:
