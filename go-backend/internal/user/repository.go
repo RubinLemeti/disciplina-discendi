@@ -1,6 +1,8 @@
 package user
 
 import (
+	// "errors"
+
 	"gorm.io/gorm"
 )
 
@@ -14,7 +16,7 @@ func NewUserRepository(db *gorm.DB) UserRepositoryI {
 
 func (ur UserRepository) GetUserItem(userId int) (*User, error) {
 	var user User
-	ur.db.Raw(
+	result := ur.db.Raw(
 		`select id, 
 			username, 
 			email, 
@@ -24,6 +26,15 @@ func (ur UserRepository) GetUserItem(userId int) (*User, error) {
 			from go_backend.users
 			where id=?`, 
 		userId).Scan(&user)
+	
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 0{
+		return nil, nil //resource does not exist
+	}
 
 	return &user, nil
 	// return *User
