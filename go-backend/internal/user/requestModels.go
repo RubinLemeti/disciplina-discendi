@@ -9,3 +9,8 @@ type AddUserItemModel struct {
 type GetUserItemModel struct {
 	Id int `json:"id" validate:"gte=0"`
 }
+
+type GetUserItemListModel struct{
+	Data []GetUserItemModel
+	Metadata int
+}

@@ -1,19 +1,22 @@
 package main
 
 import (
+	"go-backend/internal"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
-	"go-backend/internal"
-	"log"
+
+	// "log"
 	"log/slog"
 	"net/http"
 )
 
 func main() {
-	err := godotenv.Load("../.env")
+	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		slog.Error("Failed to load ther environment variables")
+		slog.Error(err.Error())
 	}
 
 	router := chi.NewRouter()

@@ -4,7 +4,11 @@ import (
 	// "fmt"
 	// "log/slog"
 	"encoding/json"
+	"errors"
+	"go-backend/internal/helper"
+	"go-backend/internal/helper/customerr"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
@@ -48,19 +52,37 @@ func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
-	userItem, err := h.UserService.GetUserItem(1)
+	// Get URL parameter: userId
+	// turn it from string to int
+	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(err.Error())
+		json.NewEncoder(w).Encode("The id is not a valid id")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(userItem)
-	// return
-	// w.Write([]byte("user item"))
+	userItemId := GetUserItemModel{Id: parsedUserId}
+
+	// validate the entire struct
+	err = validate.Struct(userItemId)
+	if err != nil {
+		helper.GenericJsonResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// pass only the Id from the validated struct
+	userItem, err := h.UserService.GetUserItem(userItemId.Id)
+	if err != nil {
+		helper.GenericJsonResponse(w, http.StatusBadRequest, "Issue with the query")
+		return
+	}
+	if userItem == nil {
+		helper.GenericJsonResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	helper.GenericJsonResponse(w, http.StatusOK, userItem)
 }
 
 func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
@@ -69,25 +91,45 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&parsedRequestBody)
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(err.Error())
+		helper.GenericJsonResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	err = validate.Struct(parsedRequestBody)
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(err.Error())
-
+		helper.GenericJsonResponse(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(parsedRequestBody)
+	userId, err := h.UserService.AddUserItem(parsedRequestBody)
+
+	if err != nil {
+		if errors.Is(err, customerr.ErrUsernameNotUnique) {
+
+			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject{
+				Writer:     w,
+				StatusCode: http.StatusUnprocessableEntity,
+				Path:       "/users",
+				ErrorItem: helper.ErrorSubModel{
+					Title:   "Username is taken",
+					Details: "Uniqueness constraint violation on the 'username' field."}})
+			return
+		}
+
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject{
+			Writer: w,
+			Path:   "/users",
+		})
+		return
+	}
+
+	w.Header().Set("Location", "/users/"+strconv.Itoa(*userId))
+	helper.SuccessJsonStandardResponse(&helper.ResponseParamsObject{
+		Writer:     w,
+		StatusCode: http.StatusCreated,
+		Path:       "/users/" + strconv.Itoa(*userId),
+	})
 }
 
 func (h UserHandler) UpdateUserItem(w http.ResponseWriter, r *http.Request) {

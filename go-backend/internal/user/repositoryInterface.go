@@ -6,6 +6,8 @@ type UserRepositoryI interface {
 
 	GetUserItem(userId int) (*User, error)
 
+	AddUserItem(user AddUserItemModel)(*int, error)
+
 	// UpdateUserItem(ctx context.Context)
 
 	// DeleteUserItem(cx context.Context)
