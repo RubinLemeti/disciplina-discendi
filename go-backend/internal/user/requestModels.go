@@ -6,7 +6,7 @@ type AddUserItemModel struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type GetUserItemModel struct {
+type UserIdModel struct {
 	Id int `json:"id" validate:"gte=0"`
 }
 

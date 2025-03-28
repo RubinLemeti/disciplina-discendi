@@ -62,7 +62,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userItemId := GetUserItemModel{Id: parsedUserId}
+	userItemId := UserIdModel{Id: parsedUserId}
 
 	// validate the entire struct
 	err = validate.Struct(userItemId)
