@@ -48,7 +48,20 @@ func UserRoutes(db *gorm.DB) *chi.Mux {
 }
 
 func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("list of users"))
+	userList, err := h.UserService.GetUserList()
+
+	if err != nil {
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer: w,
+			Path:   "/users"})
+		return
+	}
+
+	helper.ListJsonStandardResponse(&helper.ResponseParamsObject[[]*User]{
+		Data: &userList,
+		Writer: w,
+		Path: "/users",
+	})
 }
 
 func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +111,13 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	err = validate.Struct(parsedRequestBody)
 
 	if err != nil {
-		helper.GenericJsonResponse(w, http.StatusUnprocessableEntity, err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusUnprocessableEntity,
+			Path:       "/users",
+			ErrorItem: helper.ErrorSubModel{
+				Title:   "Validation error",
+				Details: err.Error()}})
 		return
 	}
 
@@ -107,7 +126,7 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, customerr.ErrUsernameNotUnique) {
 
-			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject{
+			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 				Writer:     w,
 				StatusCode: http.StatusUnprocessableEntity,
 				Path:       "/users",
@@ -117,7 +136,7 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject{
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 			Writer: w,
 			Path:   "/users",
 		})
@@ -125,7 +144,7 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Location", "/users/"+strconv.Itoa(*userId))
-	helper.SuccessJsonStandardResponse(&helper.ResponseParamsObject{
+	helper.SuccessJsonStandardResponse(&helper.ResponseParamsObject[any]{
 		Writer:     w,
 		StatusCode: http.StatusCreated,
 		Path:       "/users/" + strconv.Itoa(*userId),

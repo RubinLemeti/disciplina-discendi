@@ -2,13 +2,13 @@ package user
 
 
 type UserRepositoryI interface {
-	// GetUserCollection(ctx context.Context) ([]User, error)
+	GetUserList() ([]*User, error)
 
 	GetUserItem(userId int) (*User, error)
 
 	AddUserItem(user AddUserItemModel)(*int, error)
 
-	// UpdateUserItem(ctx context.Context)
+	UpdateUserItem(userId int, userBody interface{}) (*int, error)
 
-	// DeleteUserItem(cx context.Context)
+	DeleteUserItem(userId int) (*int, error)
 }

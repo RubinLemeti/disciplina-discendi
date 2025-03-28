@@ -11,6 +11,6 @@ type UserIdModel struct {
 }
 
 type GetUserItemListModel struct{
-	Data []GetUserItemModel
+	Data []UserIdModel
 	Metadata int
 }

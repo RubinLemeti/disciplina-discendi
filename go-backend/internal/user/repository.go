@@ -15,6 +15,33 @@ func NewUserRepository(db *gorm.DB) UserRepositoryI {
 	return &UserRepository{db: db}
 }
 
+func (ur UserRepository) GetUserList() ([]*User, error) {
+	var userList []*User
+
+	results, err := ur.db.Raw(
+		`select id, 
+			username, 
+			email, 
+			password, 
+			created_at, 
+			updated_at 
+			from go_backend.users`).Rows()
+
+	if err != nil {
+		return nil, err
+	}
+	defer results.Close()
+
+	var user User
+	for results.Next() {
+		ur.db.ScanRows(results, &user)
+		userList = append(userList, &user)
+	}
+
+	return userList, nil
+
+}
+
 func (ur UserRepository) GetUserItem(userId int) (*User, error) {
 	var user User
 	result := ur.db.Raw(
@@ -85,4 +112,12 @@ func (ur UserRepository) VerifyUsernameIsUnique(tx *gorm.DB, username string) (*
 
 	isUnique := exists == 0
 	return &isUnique, nil
+}
+
+func (ur UserRepository) UpdateUserItem(userId int, userBody interface{}) (*int, error) {
+	return nil, nil
+}
+
+func (ur UserRepository) DeleteUserItem(userId int) (*int, error) {
+	return nil, nil
 }
