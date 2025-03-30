@@ -1,5 +1,16 @@
 package helper
 
+type Href struct {
+	Href string `json:"href"`
+}
+
+type Links struct {
+	First    Href `json:"first"`
+	Previous Href `json:"previous"`
+	Current  Href `json:"current"`
+	Next     Href `json:"next"`
+	Last     Href `json:"last"`
+}
 
 type Records struct {
 	First  int `json:"first"`  // position number (index) of the first record on the current page relative to the total list
@@ -15,6 +26,7 @@ type Pagination struct {
 	Current  int     `json:"current"`  // the number of the current page
 	Next     int     `json:"next"`     // the number of the next page
 	Last     int     `json:"last"`     // the number of the last page
+	Links    Links   `json:"links"`    // links to the pages
 	Records  Records `json:"records"`  // numbers of the resource
 }
 
@@ -31,7 +43,7 @@ type ItemResponseModel[T any] struct {
 }
 type ListResponseModel[T any] struct {
 	Data       T        `json:"data"`
-	Meta       Metadata `json:"meta"`
+	Meta       Pagination `json:"meta"`
 	Path       string   `json:"path"`
 	Success    bool     `json:"success"` // true or false
 	StatusCode int      `json:"statusCode"`
