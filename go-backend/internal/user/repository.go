@@ -3,6 +3,7 @@ package user
 import (
 	// "errors"
 	"go-backend/internal/helper/customerr"
+	"log/slog"
 
 	"gorm.io/gorm"
 )
@@ -15,30 +16,39 @@ func NewUserRepository(db *gorm.DB) UserRepositoryI {
 	return &UserRepository{db: db}
 }
 
-func (ur UserRepository) GetUserList() ([]*User, error) {
+func (ur UserRepository) GetUserList(limit int, offset int) (*int, []*User, error) {
 	var userList []*User
+	var total int
 
-	results, err := ur.db.Raw(
+	rows, err := ur.db.Raw(
 		`select id, 
 			username, 
 			email, 
 			password, 
 			created_at, 
 			updated_at 
-			from go_backend.users`).Rows()
+			from go_backend.users
+			limit ?
+			offset ?`, limit, offset).Rows()
 
 	if err != nil {
-		return nil, err
+		slog.Error(err.Error())
+		return nil, nil, err
 	}
-	defer results.Close()
+	defer rows.Close()
 
-	var user User
-	for results.Next() {
-		ur.db.ScanRows(results, &user)
+	row := ur.db.Raw(
+		`select count(id) 
+		from go_backend.users`).Row()
+	row.Scan(&total)
+
+	for rows.Next() {
+		var user User
+		ur.db.ScanRows(rows, &user)
 		userList = append(userList, &user)
 	}
 
-	return userList, nil
+	return &total, userList, nil
 
 }
 
@@ -73,6 +83,7 @@ func (ur UserRepository) AddUserItem(user AddUserItemModel) (*int, error) {
 
 	isUsernameUnique, err := ur.VerifyUsernameIsUnique(tx, user.Username)
 	if err != nil {
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -107,6 +118,7 @@ func (ur UserRepository) VerifyUsernameIsUnique(tx *gorm.DB, username string) (*
 		Scan(&exists).Error
 
 	if err != nil {
+		slog.Error(err.Error())
 		return nil, err
 	}
 

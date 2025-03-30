@@ -1,7 +1,7 @@
 package user
 
 type UserServiceI interface {
-	GetUserList() ([]*User, error)
+	GetUserList(limit int, offset int) (*int, []*User, error)
 
 	GetUserItem(userId int) (*User, error)
 

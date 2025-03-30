@@ -1,16 +1,22 @@
 package user
 
 type AddUserItemModel struct {
-	Username string `json:"username" validate:"required"`
+	Username string `json:"username" validate:"required,min=3"`
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Password *string `json:"password" validate:"required,min=5,alphanum"`
+}
+
+type UpdateUserItemModel struct {
+	Username *string `json:"username" validate:"omitempty,alpha,min=3"`
+	Email    *string `json:"email" validate:"omitempty,email"`
+	Password *string `json:"password" validate:"omitempty,min=5,alphanum"`
 }
 
 type UserIdModel struct {
 	Id int `json:"id" validate:"gte=0"`
 }
 
-type GetUserItemListModel struct{
-	Data []UserIdModel
-	Metadata int
+type GetUserListQueryParams struct {
+	Limit  int `json:"limit" validate:"gte=0"`
+	Offset int `json:"offset" validate:"gte=-1"`
 }

@@ -8,8 +8,8 @@ func NewUserService(repo UserRepositoryI) UserServiceI {
 	return &UserService{repository: repo}
 }
 
-func (us UserService) GetUserList() ([]*User, error) {
-	return us.repository.GetUserList()
+func (us UserService) GetUserList(limit int, offset int) (*int, []*User, error) {
+	return us.repository.GetUserList(limit, offset)
 }
 
 func (us UserService) GetUserItem(userId int) (*User, error) {
