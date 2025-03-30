@@ -16,15 +16,54 @@ func GenericJsonResponse(w http.ResponseWriter, statusCode int, reponseMessage a
 
 type ResponseParamsObject[T any] struct {
 	Data       *T
+	Meta       Pagination
 	Writer     http.ResponseWriter
 	StatusCode int
 	Path       string
 	ErrorItem  ErrorSubModel
 }
 
+func ErrorJsonStandardResponseV2(w http.ResponseWriter, statusCode int, path string, title string, details string) {
+	params := ResponseParamsObject[any]{
+		Writer:     w,
+		StatusCode: statusCode,
+		Path:       path,
+		ErrorItem:  ErrorSubModel{Title: title, Details: details},
+	}
+
+	if params.StatusCode == 0 {
+		params.StatusCode = 500
+
+	}
+
+	if params.ErrorItem.Title == "" {
+		params.ErrorItem.Title = "Internal Server Error"
+	}
+
+	if params.ErrorItem.Details == "" {
+		params.ErrorItem.Details = "An unexpected error occurred"
+	}
+
+	params.Writer.Header().Set("Content-Type", "application/json")
+	params.Writer.WriteHeader(params.StatusCode)
+
+	response := FailureResponseModel{
+		Error: ErrorSubModel{
+			Title:   params.ErrorItem.Title,
+			Details: params.ErrorItem.Details}, //err.Error()
+		Path:       params.Path,
+		Success:    false,
+		StatusCode: params.StatusCode,
+		Timestamp:  (time.Now()).Format("2006-01-02T03:04:05"),
+	}
+
+	json.NewEncoder(params.Writer).Encode(response)
+}
+
 func ErrorJsonStandardResponse(params *ResponseParamsObject[any]) {
 	if params.StatusCode == 0 {
 		params.StatusCode = 500
+
 	}
 
 	if params.ErrorItem.Title == "" {
@@ -97,6 +136,7 @@ func ListJsonStandardResponse[T any](params *ResponseParamsObject[T]) {
 
 	response := ListResponseModel[any]{
 		Data:       params.Data,
+		Meta:       params.Meta,
 		Path:       params.Path,
 		Success:    true,
 		StatusCode: params.StatusCode,

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"go-backend/internal/helper"
 	"go-backend/internal/helper/customerr"
+	"go-backend/internal/helper/customval"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -40,7 +42,7 @@ func UserRoutes(db *gorm.DB) *chi.Mux {
 	router.Get("/users", userHandler.GetUserList)
 	router.Get("/users/{userId}", userHandler.GetUserItem)
 	router.Post("/users", userHandler.AddUserItem)
-	router.Patch("/users", userHandler.UpdateUserItem)
+	router.Patch("/users/{userId}", userHandler.UpdateUserItem)
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
 
@@ -48,19 +50,69 @@ func UserRoutes(db *gorm.DB) *chi.Mux {
 }
 
 func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
-	userList, err := h.UserService.GetUserList()
+	limit := 10
+	offset := 0
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		lStr, err := strconv.Atoi(l)
+		if err != nil {
+			slog.Error(err.Error())
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "", "")
+			return
+		}
+
+		
+		if err = validate.Struct(GetUserListQueryParams{Limit: lStr});err != nil {
+			slog.Error(err.Error())
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Validation error", err.Error())
+			return
+		}
+
+		limit = lStr
+	}
+
+	if o := r.URL.Query().Get("offset"); o != "" {
+		oStr, err := strconv.Atoi(o)
+		if err != nil {
+			slog.Error(err.Error())
+			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+				StatusCode: http.StatusUnprocessableEntity,
+				Writer:     w,
+				Path:       "/users"})
+			return
+		}
+
+		err = validate.Struct(GetUserListQueryParams{Offset: oStr})
+		if err != nil {
+			slog.Error(err.Error())
+			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+				StatusCode: http.StatusUnprocessableEntity,
+				ErrorItem:  helper.ErrorSubModel{Title: "Validation error", Details: err.Error()},
+				Writer:     w,
+				Path:       "/users"})
+			return
+		}
+
+		offset = oStr
+	}
+
+	total, userList, err := h.UserService.GetUserList(limit, offset)
 
 	if err != nil {
+		slog.Error(err.Error())
 		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 			Writer: w,
 			Path:   "/users"})
 		return
 	}
 
+	paginationMeta := helper.Paginate(*total, limit, offset, len(userList), "/users")
+
 	helper.ListJsonStandardResponse(&helper.ResponseParamsObject[[]*User]{
-		Data: &userList,
+		Data:   &userList,
+		Meta:   *paginationMeta,
 		Writer: w,
-		Path: "/users",
+		Path:   "/users",
 	})
 }
 
@@ -69,6 +121,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	// turn it from string to int
 	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
 	if err != nil {
+		slog.Error(err.Error())
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode("The id is not a valid id")
@@ -80,6 +133,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	// validate the entire struct
 	err = validate.Struct(userItemId)
 	if err != nil {
+		slog.Error(err.Error())
 		helper.GenericJsonResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -87,6 +141,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	// pass only the Id from the validated struct
 	userItem, err := h.UserService.GetUserItem(userItemId.Id)
 	if err != nil {
+		slog.Error(err.Error())
 		helper.GenericJsonResponse(w, http.StatusBadRequest, "Issue with the query")
 		return
 	}
@@ -104,13 +159,17 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&parsedRequestBody)
 
 	if err != nil {
-		helper.GenericJsonResponse(w, http.StatusBadRequest, err.Error())
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusBadRequest,
+			Path:       "/users"})
 		return
 	}
 
 	err = validate.Struct(parsedRequestBody)
-
 	if err != nil {
+		slog.Error(err.Error())
 		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 			Writer:     w,
 			StatusCode: http.StatusUnprocessableEntity,
@@ -124,8 +183,9 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	userId, err := h.UserService.AddUserItem(parsedRequestBody)
 
 	if err != nil {
-		if errors.Is(err, customerr.ErrUsernameNotUnique) {
 
+		if errors.Is(err, customerr.ErrUsernameNotUnique) {
+			slog.Error(err.Error())
 			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 				Writer:     w,
 				StatusCode: http.StatusUnprocessableEntity,
@@ -136,6 +196,7 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		slog.Error(err.Error())
 		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
 			Writer: w,
 			Path:   "/users",
@@ -152,6 +213,57 @@ func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h UserHandler) UpdateUserItem(w http.ResponseWriter, r *http.Request) {
+	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/{id}", "Validation error", "The id is not a valid id")
+		return
+	}
+
+	err = validate.Struct(UserIdModel{Id: parsedUserId})
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusBadRequest,
+			Path:       "/users"})
+		return
+	}
+
+	var parsedRequestBody UpdateUserItemModel
+	err = json.NewDecoder(r.Body).Decode(&parsedRequestBody)
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusBadRequest,
+			Path:       "/users"})
+		return
+	}
+
+	err = customval.ValidateNonEmptyRequest(r)
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusBadRequest,
+			Path:       "/users"})
+		return
+	}
+
+	err = validate.Struct(parsedRequestBody)
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
+			Writer:     w,
+			StatusCode: http.StatusUnprocessableEntity,
+			Path:       "/users",
+			ErrorItem: helper.ErrorSubModel{
+				Title:   "Validation error",
+				Details: err.Error()}})
+		return
+	}
+
 	w.Write([]byte("user updated"))
 }
 
