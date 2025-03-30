@@ -1,11 +1,17 @@
-<small><small>emptyyyy</small></small>
+# The discipline of learning
 
-![tumbling weed](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExczMzd3V6MmJoczg0MW8xNzd3bHMyOGxwOWlzb2N0MjJyYnBpb2FhMyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/1Zbeweu52ZaQE/giphy.gif)  
+## General Overview
+This project is meant to be a multiservice platform where each service handles a module (basically a resource/entity CRUD).   
+What I am trying to accomplish is to make a project made up of many different languages and tools on which I have knowledge of.
 
+The languages:
+* Golang
+* Php
+* Python
+* Typescript
+* Mysql query language
 
+The tools:
+* Docker
 
-
-
-
-
-<small><small><small>For now...</small></small></small>
+## Setup

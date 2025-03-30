@@ -4,8 +4,8 @@ services:
       context: ./go-backend
       dockerfile: Dockerfile.dev
     container_name: go-backend
-    command: /go/bin/air
-    # command: tail -f /dev/null
+    # command: /go/bin/air
+    command: tail -f /dev/null
     depends_on:
       - postgres-db
     env_file:
