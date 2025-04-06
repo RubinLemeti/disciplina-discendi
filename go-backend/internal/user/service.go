@@ -20,6 +20,10 @@ func (us UserService) AddUserItem(user AddUserItemModel) (*int, error) {
 	return us.repository.AddUserItem(user)
 }
 
-func (us UserService) UpdateUserItem(userId int, userBody interface{}) (*int, error) {return nil, nil}
+func (us UserService) UpdateUserItem(userId int, userBody UpdateUserItemModel) (*int, error) {
+	return us.repository.UpdateUserItem(userId, userBody)
+}
 
-func (us UserService) DeleteUserItem(userId int) (*int, error) { return nil, nil }
+func (us UserService) DeleteUserItem(userId int) (*int, error) { 
+	return us.repository.DeleteUserItem(userId)
+ }

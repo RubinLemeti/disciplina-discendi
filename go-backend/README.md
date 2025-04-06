@@ -12,3 +12,8 @@ The migrations can be run with the command below
 ```sh
 migrate -source file:///app/internal/db/migrations -database "postgres://root:root@postgres_db:5432/go_backend?sslmode=disable" up
 ```
+
+Command to update the ownership of all files(helps if you've created files while inside a container)
+```sh
+sudo chown -R $(id -u):$(id -g) /path/to/your/project
+```

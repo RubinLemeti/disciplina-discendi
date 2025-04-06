@@ -13,7 +13,7 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - inventory_app_network
+      - shop_app_network
     volumes:
       - ./go-backend:/app
 
@@ -30,10 +30,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - inventory_app_network
+      - shop_app_network
 
 networks:
-  inventory_app_network:
+  shop_app_network:
 
 volumes:
   pgdata:

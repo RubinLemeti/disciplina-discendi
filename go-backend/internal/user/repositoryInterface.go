@@ -8,7 +8,7 @@ type UserRepositoryI interface {
 
 	AddUserItem(user AddUserItemModel)(*int, error)
 
-	UpdateUserItem(userId int, userBody interface{}) (*int, error)
+	UpdateUserItem(userId int, userBody UpdateUserItemModel) (*int, error)
 
 	DeleteUserItem(userId int) (*int, error)
 }

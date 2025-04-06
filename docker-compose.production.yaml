@@ -1,17 +1,18 @@
-version: '3.8'
-
 services:
   go-backend:
-    build: .
+    build: 
+      context: ./go-backend
+      dockerfile: Dockerfile
     container_name: go-backend
+    # command: tail -f /dev/null
     depends_on:
       - postgres-db
     env_file:
-      - ./go_backend/.env
+      - ./go-backend/.env
     ports:
       - "8080:8080"
     networks:
-      - inventory_app_network
+      - shop_app_network
 
   postgres-db:
     image: postgres:15
@@ -26,10 +27,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - inventory_app_network
+      - shop_app_network
 
 networks:
-  inventory_app_network:
+  shop_app_network:
 
 volumes:
   pgdata:

@@ -43,6 +43,7 @@ func UserRoutes(db *gorm.DB) *chi.Mux {
 	router.Get("/users/{userId}", userHandler.GetUserItem)
 	router.Post("/users", userHandler.AddUserItem)
 	router.Patch("/users/{userId}", userHandler.UpdateUserItem)
+	router.Delete("/users/{userId}", userHandler.DeleteUserItem)
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
 
@@ -61,8 +62,7 @@ func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		
-		if err = validate.Struct(GetUserListQueryParams{Limit: lStr});err != nil {
+		if err = validate.Struct(GetUserListQueryParams{Limit: lStr}); err != nil {
 			slog.Error(err.Error())
 			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Validation error", err.Error())
 			return
@@ -75,21 +75,14 @@ func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
 		oStr, err := strconv.Atoi(o)
 		if err != nil {
 			slog.Error(err.Error())
-			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-				StatusCode: http.StatusUnprocessableEntity,
-				Writer:     w,
-				Path:       "/users"})
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Validation error", err.Error())
 			return
 		}
 
 		err = validate.Struct(GetUserListQueryParams{Offset: oStr})
 		if err != nil {
 			slog.Error(err.Error())
-			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-				StatusCode: http.StatusUnprocessableEntity,
-				ErrorItem:  helper.ErrorSubModel{Title: "Validation error", Details: err.Error()},
-				Writer:     w,
-				Path:       "/users"})
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Validation error", err.Error())
 			return
 		}
 
@@ -100,9 +93,7 @@ func (h UserHandler) GetUserList(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer: w,
-			Path:   "/users"})
+		helper.ErrorJsonStandardResponseV2(w, 0, "/users", "", "")
 		return
 	}
 
@@ -122,9 +113,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
 	if err != nil {
 		slog.Error(err.Error())
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode("The id is not a valid id")
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not valid")
 		return
 	}
 
@@ -134,7 +123,7 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	err = validate.Struct(userItemId)
 	if err != nil {
 		slog.Error(err.Error())
-		helper.GenericJsonResponse(w, http.StatusBadRequest, err.Error())
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not valid")
 		return
 	}
 
@@ -142,131 +131,137 @@ func (h UserHandler) GetUserItem(w http.ResponseWriter, r *http.Request) {
 	userItem, err := h.UserService.GetUserItem(userItemId.Id)
 	if err != nil {
 		slog.Error(err.Error())
-		helper.GenericJsonResponse(w, http.StatusBadRequest, "Issue with the query")
+		helper.ErrorJsonStandardResponseV2(w, 0, "/users/"+chi.URLParam(r, "userId"), "", "")
 		return
 	}
 	if userItem == nil {
-		helper.GenericJsonResponse(w, http.StatusNotFound, "User not found")
+		slog.Error("User with id " + chi.URLParam(r, "userId") + "does not exist")
+		helper.ErrorJsonStandardResponseV2(w, http.StatusNotFound, "/users/"+chi.URLParam(r, "userId"), "User not found", "The id is does not match with a user in the system")
 		return
 	}
 
-	helper.GenericJsonResponse(w, http.StatusOK, userItem)
+	helper.ItemJsonStandardResponse(userItem, w, http.StatusOK, "/users/"+chi.URLParam(r, "userId"), "", "")
 }
 
 func (h UserHandler) AddUserItem(w http.ResponseWriter, r *http.Request) {
 	var parsedRequestBody AddUserItemModel
 
-	err := json.NewDecoder(r.Body).Decode(&parsedRequestBody)
-
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&parsedRequestBody); err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusBadRequest,
-			Path:       "/users"})
+		helper.ErrorJsonStandardResponseV2(w, http.StatusNotFound, "/users", "", "")
 		return
 	}
 
-	err = validate.Struct(parsedRequestBody)
-	if err != nil {
+	if err := validate.Struct(parsedRequestBody); err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusUnprocessableEntity,
-			Path:       "/users",
-			ErrorItem: helper.ErrorSubModel{
-				Title:   "Validation error",
-				Details: err.Error()}})
+		helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Validation error", err.Error())
 		return
 	}
 
 	userId, err := h.UserService.AddUserItem(parsedRequestBody)
-
 	if err != nil {
 
 		if errors.Is(err, customerr.ErrUsernameNotUnique) {
 			slog.Error(err.Error())
-			helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-				Writer:     w,
-				StatusCode: http.StatusUnprocessableEntity,
-				Path:       "/users",
-				ErrorItem: helper.ErrorSubModel{
-					Title:   "Username is taken",
-					Details: "Uniqueness constraint violation on the 'username' field."}})
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Username is taken", "Uniqueness constraint violation on the 'username' field.")
 			return
 		}
 
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer: w,
-			Path:   "/users",
-		})
+		helper.ErrorJsonStandardResponseV2(w, 0, "/users", "", "")
 		return
 	}
 
 	w.Header().Set("Location", "/users/"+strconv.Itoa(*userId))
-	helper.SuccessJsonStandardResponse(&helper.ResponseParamsObject[any]{
-		Writer:     w,
-		StatusCode: http.StatusCreated,
-		Path:       "/users/" + strconv.Itoa(*userId),
-	})
+	helper.SuccessJsonStandardResponseV2(w, http.StatusCreated, "/users")
 }
 
 func (h UserHandler) UpdateUserItem(w http.ResponseWriter, r *http.Request) {
+	// parse the id url parameter
 	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
 	if err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/{id}", "Validation error", "The id is not a valid id")
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not a valid id")
 		return
 	}
 
-	err = validate.Struct(UserIdModel{Id: parsedUserId})
-	if err != nil {
+	// validate the id url parameter
+	if err = validate.Struct(UserIdModel{Id: parsedUserId}); err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusBadRequest,
-			Path:       "/users"})
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not a valid id")
 		return
 	}
 
+	// validate that the json body is not empty
+	if err = customval.ValidateNonEmptyRequest(r); err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Bad request", "The request is not valid json")
+		return
+	}
+
+	// validate the json body
 	var parsedRequestBody UpdateUserItemModel
-	err = json.NewDecoder(r.Body).Decode(&parsedRequestBody)
-	if err != nil {
+	if err = json.NewDecoder(r.Body).Decode(&parsedRequestBody); err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusBadRequest,
-			Path:       "/users"})
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Bad request", "The request is not valid json")
 		return
 	}
 
-	err = customval.ValidateNonEmptyRequest(r)
-	if err != nil {
+	if err = validate.Struct(parsedRequestBody); err != nil {
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusBadRequest,
-			Path:       "/users"})
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", err.Error())
 		return
 	}
 
-	err = validate.Struct(parsedRequestBody)
+	// update the variable
+	userId, err := h.UserService.UpdateUserItem(parsedUserId, parsedRequestBody)
 	if err != nil {
+
+		if errors.Is(err, customerr.ErrUsernameNotUnique) {
+			slog.Error(err.Error())
+			helper.ErrorJsonStandardResponseV2(w, http.StatusUnprocessableEntity, "/users", "Username is taken", "Uniqueness constraint violation on the 'username' field.")
+			return
+		}
+
 		slog.Error(err.Error())
-		helper.ErrorJsonStandardResponse(&helper.ResponseParamsObject[any]{
-			Writer:     w,
-			StatusCode: http.StatusUnprocessableEntity,
-			Path:       "/users",
-			ErrorItem: helper.ErrorSubModel{
-				Title:   "Validation error",
-				Details: err.Error()}})
+		helper.ErrorJsonStandardResponseV2(w, 0, "/users", "", "")
 		return
 	}
 
-	w.Write([]byte("user updated"))
+	w.Header().Set("Location", "/users/"+strconv.Itoa(*userId))
+	helper.SuccessJsonStandardResponseV2(w, 0, "/users/"+chi.URLParam(r, "userId"))
 }
 
 func (h UserHandler) DeleteUserItem(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("user deleted"))
+	// parse the id url parameter
+	parsedUserId, err := strconv.Atoi(chi.URLParam(r, "userId"))
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not a valid id")
+		return
+	}
+
+	// validate the id url parameter
+	if err = validate.Struct(UserIdModel{Id: parsedUserId}); err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponseV2(w, http.StatusBadRequest, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not a valid id")
+		return
+	}
+
+	userId, err := h.UserService.DeleteUserItem(parsedUserId)
+
+	if userId == nil {
+		helper.ErrorJsonStandardResponseV2(w, http.StatusNotFound, "/users/"+chi.URLParam(r, "userId"), "Validation error", "The id is not valid")
+		helper.GenericJsonResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if err != nil {
+		slog.Error(err.Error())
+		helper.ErrorJsonStandardResponseV2(w, 0, "/users/"+chi.URLParam(r, "userId"), "", "")
+		return
+	}
+
+	w.Header().Set("Location", "/users/"+chi.URLParam(r, "userId"))
+	helper.SuccessJsonStandardResponseV2(w, http.StatusNoContent, "/users/"+chi.URLParam(r, "userId"))
 }
