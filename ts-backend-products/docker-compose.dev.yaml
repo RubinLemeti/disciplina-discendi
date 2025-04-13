@@ -1,0 +1,59 @@
+services:
+  ts-backend-products:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ts-backend-products
+    command: tail -f /dev/null
+    depends_on:
+      - mongo-db
+    volumes:
+      - .:/app # Mounts the current folder to /app inside the container
+    ports:
+      - "3000:3000" # Expose port 3000 (optional for development)
+    networks:
+      - backend-network
+  # mongodb:
+  #   image: mongodb/mongodb-community-server:6.0-ubi8
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=user
+  #     - MONGO_INITDB_ROOT_PASSWORD=pass
+  #   volumes:
+  #     - type: bind
+  #       source: ./data
+  #       target: /data/db
+  #   env_file:
+  #     - ".env"
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - backend-network
+
+  mongo-db:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    container_name: mongo-db
+    restart: always
+    volumes:
+      - "mgdata:/var/lib/postgresql/data"
+    env_file:
+      - ".env"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+    ports:
+      - "27017:27017"
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  mgdata:
+
+    # adminer:
+    #   image: adminer
+    #   restart: always
+    #   ports:
+    #     - 9090:8080
