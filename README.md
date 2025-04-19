@@ -5,8 +5,6 @@ Hello dear reader. This project is meant to be a multiservice platform to showca
 
 ![big plans](big-plans-codebase.jpg)
 
-This project is meant to be a multiservice platform where each service handles a module (basically a resource/entity CRUD).   
-What I am trying to accomplish is to make a project made up of many different languages and tools on which I have knowledge of.
 
 The languages:
 * Golang
